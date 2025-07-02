@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Treadmill Controller</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🏃 City2Surf Simulator</h1>
+        
+        <!-- Course Selection -->
+        <div class="control-panel">
+            <select id="course-select">
+                <option value="city2surf2013">City2Surf 2013</option>
+                <option value="chicago_marathon24">Chicago Marathon</option>
+            </select>
+            <button id="start-course">Start Course</button>
+            <label>
+                <input type="checkbox" id="auto-incline"> Auto Incline
+            </label>
+        </div>
+
+        <!-- Live Metrics -->
+        <div class="metrics">
+            <div class="metric">
+                <span>Distance:</span>
+                <span id="distance">0.0</span> km
+            </div>
+            <div class="metric">
+                <span>Incline:</span>
+                <span id="incline">0</span>%
+            </div>
+            <div class="metric">
+                <span>Heart Rate:</span>
+                <span id="heart-rate">--</span> bpm
+            </div>
+        </div>
+
+        <!-- Course Visualization -->
+        <div id="course-plot" style="height: 400px;"></div>
+
+        <!-- Manual Controls -->
+        <div class="manual-controls">
+            <button id="incline-up">▲ Incline+</button>
+            <button id="incline-down">▼ Incline-</button>
+        </div>
+    </div>
+</body>
+</html>

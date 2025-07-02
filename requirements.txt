@@ -1,0 +1,18 @@
+# Core Dependencies
+fastapi==0.95.2  # Slightly older but more stable on Pi
+uvicorn==0.22.0
+bleak==0.20.2  # Known working version for Pi
+python-dotenv==1.0.0
+
+# Web/Async
+aiohttp==3.8.4
+python-socketio==5.7.2
+websockets==10.4  # Older but stable
+
+# Data Handling
+pyyaml==6.0
+
+# Testing (optional)
+pytest==7.4.0
+gpxpy>=1.5.0
+geopy>=2.3.0

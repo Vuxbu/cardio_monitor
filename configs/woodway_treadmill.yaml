@@ -1,0 +1,11 @@
+address: "D0:CF:5E:E3:25:D3"  # Your treadmill's BLE address
+data_uuid: "a026e01d-0a7d-4ab3-97fa-f1500f9feb8b"  # Woodway data characteristic
+
+# Byte positions (inclusive)
+byte_positions:
+  speed: [6, 7]    # UINT16 little-endian
+  incline: [16, 17] # UINT16 little-endian
+
+scale_factors:
+  speed: 100.0     # Convert to km/h
+  incline: 10.0    # Convert to %

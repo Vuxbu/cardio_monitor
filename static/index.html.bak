@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fitness Dashboard</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>Workout Monitor</h1>
+        <div class="metrics">
+            <div class="metric">
+                <h2>Heart Rate</h2>
+                <div id="hr-value">--</div>
+                <span>bpm</span>
+            </div>
+            <div class="metric">
+                <h2>Treadmill Speed</h2>
+                <div id="speed-value">--</div>
+                <span>km/h</span>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

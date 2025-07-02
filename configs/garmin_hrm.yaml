@@ -1,0 +1,19 @@
+# configs/garmin_hrm.yaml
+devices:
+  hrm_pro:
+    name: "HRM-Pro"
+    address: "d2:43:8d:a2:45:19"  # ADD THIS LINE (replace with your HRM's actual address)
+    
+    service_uuids:
+      - "0000180d-0000-1000-8000-00805f9b34fb"  # Heart Rate Service
+    characteristics:
+      heart_rate:
+        uuid: "00002a37-0000-1000-8000-00805f9b34fb"
+        format: "uint8"  # Data format specification
+      cadence:
+        uuid: "00002a53-0000-1000-8000-00805f9b34fb"
+        format: "uint8"
+    connection_params:
+      scan_timeout: 10
+      retry_interval: 5
+      linux_bluez: true  # Raspberry Pi specific
