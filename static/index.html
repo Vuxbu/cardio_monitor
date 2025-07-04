@@ -3,8 +3,39 @@
 <head>
     <title>Treadmill Controller</title>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/static/js/app.js"></script>
+    <style>
+        /* Additional CSS for new features */
+        #map-container {
+            height: 300px;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .split-info {
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .elevation-key {
+            display: flex;
+            justify-content: space-around;
+            margin: 10px 0;
+        }
+        .elevation-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -27,6 +58,7 @@
             <div class="metric">
                 <span>Distance:</span>
                 <span id="distance">0.0</span> km
+                <span id="elevation-marker" class="elevation-color"></span>
             </div>
             <div class="metric">
                 <span>Incline:</span>
@@ -36,10 +68,29 @@
                 <span>Heart Rate:</span>
                 <span id="heart-rate">--</span> bpm
             </div>
+            <div class="metric">
+                <span>Speed:</span>
+                <span id="speed">0.0</span> km/h
+            </div>
         </div>
 
         <!-- Course Visualization -->
-        <div id="course-plot" style="height: 400px;"></div>
+        <div id="map-container"></div>
+        <div id="course-plot" style="height: 300px;"></div>
+
+        <!-- Split Time Info -->
+        <div class="split-info">
+            <div>Next Split: <span id="next-split">5.0km (00:22:45)</span></div>
+            <div>Current Split: <span id="current-split-time">00:00:00</span></div>
+            <div>vs Your Best: <span id="time-delta">+0:00</span></div>
+        </div>
+
+        <!-- Elevation Key -->
+        <div class="elevation-key">
+            <div><span class="elevation-color" style="background: #2c7bb6;"></span> Low</div>
+            <div><span class="elevation-color" style="background: #fdae61;"></span> Medium</div>
+            <div><span class="elevation-color" style="background: #d7191c;"></span> High</div>
+        </div>
 
         <!-- Manual Controls -->
         <div class="manual-controls">

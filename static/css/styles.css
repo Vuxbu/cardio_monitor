@@ -40,3 +40,36 @@ body {
     50% { transform: scale(1.1); }
     100% { transform: scale(1); }
 }
+
+#map-container {
+    height: 300px;
+    margin: 1rem 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.leaflet-container {
+    background: #f8f9fa !important;
+}
+
+.pulse {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+/* Add to existing styles */
+.control-panel {
+    display: flex;
+    gap: 10px;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+#elevation-marker {
+    margin-left: 10px;
+    vertical-align: middle;
+}
