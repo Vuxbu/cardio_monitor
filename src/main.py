@@ -8,7 +8,7 @@ from pathlib import Path
 import logging
 from hrm_manager import HRMManager
 from treadmill_manager import WoodwayTreadmill
-from config.config_loader import load_hrm_config, load_treadmill_config
+from src.config.config_loader import load_hrm_config, load_treadmill_config
 
 # Configuration from environment variables with defaults
 SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
