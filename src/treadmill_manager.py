@@ -1,56 +1,75 @@
 import asyncio
-import json
 import logging
 from bleak import BleakClient
+from pathlib import Path
+import yaml
+from typing import Optional, Dict, Callable, Awaitable
 
 class WoodwayTreadmill:
-    def __init__(self):
-        self.client = None
-        self.course = None
-        self.current_km = 0.0
-        self.auto_incline = False  # Manual mode by default
+    def __init__(self, config_path: str = "configs/woodway_treadmill.yaml"):
+        self.config_path = Path(__file__).parent.parent / config_path
+        self.config = self._load_config()
+        self.client: Optional[BleakClient] = None
+        self.callback: Optional[Callable[[Dict], Awaitable[None]]] = None
+        self.is_connected = False
+        logging.basicConfig(level=logging.INFO)
+
+    def _load_config(self) -> dict:
+        """Load configuration with validation"""
+        with open(self.config_path) as f:
+            config = yaml.safe_load(f)
         
-    async def connect(self, mac_address):
-        """Connect to Woodway treadmill via BLE"""
-        self.client = BleakClient(mac_address)
-        await self.client.connect()
-        logging.info(f"Connected to treadmill at {mac_address}")
+        return {
+            'mac_address': config['devices']['treadmill']['address'],
+            'data_uuid': config['devices']['treadmill']['data_uuid'],
+            'byte_positions': config['devices']['treadmill']['byte_positions'],
+            'scale_factors': {'speed': 100.0, 'incline': 10.0}
+        }
 
-    async def load_course(self, course_name):
-        """Load GPX course profile"""
-        with open(f"src/courses/{course_name}.json") as f:
-            self.course = json.load(f)
-        logging.info(f"Loaded course: {self.course['name']}")
-
-    async def simulate_course(self):
-        """Run course simulation (manual incline mode)"""
-        if not self.course:
-            raise ValueError("No course loaded!")
-            
-        for segment in self.course["profile"]:
-            self.current_km = segment["km"]
-            
-            if self.auto_incline:
-                await self.set_incline(segment["grade"])
-            else:
-                logging.info(
-                    f"At {self.current_km:.1f}km → "
-                    f"MANUAL: Set incline to {segment['grade']}%"
+    async def connect(self, retries: int = 3, retry_delay: float = 5.0):
+        """Robust connection handler"""
+        for attempt in range(retries):
+            try:
+                self.client = BleakClient(self.config['mac_address'])
+                await self.client.connect()
+                await self.client.start_notify(
+                    self.config['data_uuid'],
+                    self._handle_data
                 )
+                self.is_connected = True
+                logging.info(f"Connected (Attempt {attempt+1}/{retries})")
+                return
+            except Exception as e:
+                if attempt == retries - 1: raise
+                logging.warning(f"Retrying in {retry_delay}s... ({str(e)})")
+                await asyncio.sleep(retry_delay)
+
+    def _handle_data(self, sender, data: bytearray):
+        """Data processor with automatic callback handling"""
+        if not self.callback: return
+        
+        try:
+            result = {
+                'speed': round(int.from_bytes(
+                    bytes(data[self.config['byte_positions']['speed'][0]:self.config['byte_positions']['speed'][1]+1]),
+                    'little'
+                ) / self.config['scale_factors']['speed'], 2),
+                'incline': round(int.from_bytes(
+                    bytes(data[self.config['byte_positions']['incline'][0]:self.config['byte_positions']['incline'][1]+1]),
+                    'little'
+                ) / self.config['scale_factors']['incline'], 1)
+            }
             
-            await asyncio.sleep(1)  # Adjust for speed
-
-    async def set_incline(self, grade):
-        """Send incline command (auto or manual)"""
-        if self.auto_incline:
-            await self._send_ble_command(f"INCLINE {grade}")
-        else:
-            logging.info(f"Manual incline adjustment needed: {grade}%")
-
-    async def _send_ble_command(self, cmd):
-        """Low-level BLE command sender"""
-        # Replace with your treadmill's BLE UUID
-        await self.client.write_gatt_char("CHAR_UUID", cmd.encode())
+            if asyncio.iscoroutinefunction(self.callback):
+                asyncio.create_task(self.callback(result))
+            else:
+                self.callback(result)
+                
+        except Exception as e:
+            logging.warning(f"Data error: {str(e)}")
 
     async def disconnect(self):
-        await self.client.disconnect()
+        """Guaranteed clean disconnect"""
+        if self.client and self.is_connected:
+            await self.client.disconnect()
+        self.is_connected = False
