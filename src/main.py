@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 from aiohttp import web
 import socketio
-import os
 from pathlib import Path
-from typing import Dict, Awaitable
+from typing import Dict
+from treadmill_manager import WoodwayTreadmill
 
 # Initialize logging
 logging.basicConfig(
@@ -14,106 +14,102 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Define paths FIRST
+# Configuration
 static_path = Path(__file__).parent.parent / 'static'
-print(f"[DEBUG] Static files path: {static_path}")
-print(f"[DEBUG] Directory exists: {static_path.exists()}")
-print(f"[DEBUG] Contents: {list(static_path.glob('*'))}")
 
-# WebSocket setup
-sio = socketio.AsyncServer(cors_allowed_origins='*')
+# Web Application Setup
 app = web.Application()
+sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
 
-# Configure static routes
+# Serve static files
 app.router.add_static('/static', str(static_path))
+
+# Socket.IO client fallback
+async def serve_socketio_js(request):
+    return web.Response(
+        text='<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>',
+        content_type='text/html'
+    )
+app.router.add_get('/socket.io/socket.io.js', serve_socketio_js)
+
 sio.attach(app)
 
-# Import managers after logging is configured
-try:
-    from treadmill_manager import WoodwayTreadmill
-    from hrm_manager import HRMManager
-except ImportError as e:
-    logger.critical(f"Import error: {str(e)}")
-    raise
+# Device Management
+treadmill = WoodwayTreadmill()
 
 async def handle_treadmill_data(data: Dict) -> None:
-    """Process and broadcast treadmill metrics"""
     try:
-        await sio.emit('treadmill_data', {
-            **data,
-            'timestamp': datetime.now().isoformat(),
-            'type': 'treadmill'
+        await sio.emit('system_update', {
+            'type': 'metrics',
+            'speed': float(data.get('speed', 0)),
+            'incline': float(data.get('incline', 0)),
+            'distance': float(data.get('distance', 0)),
+            'heart_rate': int(data.get('heart_rate', 0)),
+            'timestamp': datetime.now().isoformat()
         })
-        logger.debug(f"Treadmill: {data['speed']} km/h, {data['incline']}%")
     except Exception as e:
-        logger.error(f"WS treadmill error: {str(e)}")
-
-async def handle_hrm_data(bpm: int) -> None:
-    """Process and broadcast heart rate"""
-    try:
-        await sio.emit('hrm_data', {
-            'bpm': bpm,
-            'timestamp': datetime.now().isoformat(),
-            'type': 'hrm'
-        })
-        logger.debug(f"Heart Rate: {bpm} BPM")
-    except Exception as e:
-        logger.error(f"WS HRM error: {str(e)}")
+        logger.error(f"Data error: {str(e)}")
 
 async def manage_devices():
-    """Main device management coroutine"""
-    treadmill = WoodwayTreadmill()
-    hrm = HRMManager()
-    
-    # Assign async callbacks
     treadmill.callback = handle_treadmill_data
-    hrm.hr_callback = handle_hrm_data
-    
     while True:
         try:
-            tasks = []
             if not treadmill.is_connected:
-                tasks.append(treadmill.connect())
-            if not hrm.is_connected:
-                tasks.append(hrm.connect())
-            
-            if tasks:
-                await asyncio.gather(*tasks)
-            
+                await treadmill.connect_with_retry()
+                await sio.emit('system_update', {
+                    'type': 'connection',
+                    'treadmill_connected': True
+                })
             await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            break
         except Exception as e:
             logger.error(f"Device error: {str(e)}")
+            await sio.emit('system_update', {
+                'type': 'connection', 
+                'treadmill_connected': False
+            })
             await asyncio.sleep(5)
-        finally:
-            await treadmill.disconnect()
-            await hrm.disconnect()
 
+# WebSocket Events
+@sio.event
+async def connect(sid, environ):
+    await sio.emit('system_update', {
+        'type': 'connection',
+        'socket_connected': True,
+        'treadmill_connected': treadmill.is_connected
+    }, room=sid)
+
+@sio.event
+async def disconnect(sid):
+    pass  # Handled by system_update events
+
+@sio.on('control_incline')
+async def handle_incline(sid, data):
+    if -10 <= data['value'] <= 10:  # Safety limit
+        logger.info(f"Incline change: {data['value']}%")
+        await sio.emit('system_update', {
+            'type': 'incline',
+            'value': data['value'],
+            'timestamp': datetime.now().isoformat()
+        })
+
+# Application Lifecycle
 @app.on_startup
 async def startup(app):
-    """Start background tasks"""
     app['device_task'] = asyncio.create_task(manage_devices())
 
 @app.on_cleanup
 async def cleanup(app):
-    """Cleanup resources"""
     app['device_task'].cancel()
     try:
         await app['device_task']
     except asyncio.CancelledError:
-        logger.info("Background tasks cancelled")
-
-async def index(request):
-    """Serve frontend"""
-    return web.FileResponse(str(static_path / 'index.html'))
+        pass
 
 # Routes
+async def index(request):
+    return web.FileResponse(str(static_path / 'index.html'))
+
 app.router.add_get('/', index)
 
 if __name__ == '__main__':
-    try:
-        web.run_app(app, host='0.0.0.0', port=8080)
-    except Exception as e:
-        logger.critical(f"Application failed: {str(e)}")
-        raise
+    web.run_app(app, host='0.0.0.0', port=8080)

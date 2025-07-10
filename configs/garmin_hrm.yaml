@@ -1,19 +1,30 @@
-# configs/garmin_hrm.yaml
 devices:
   hrm_pro:
     name: "HRM-Pro"
-    address: "d2:43:8d:a2:45:19"  # ADD THIS LINE (replace with your HRM's actual address)
+    address: "d2:43:8d:a2:45:19"  # MAC in lowercase - good practice
     
+    # Service Configuration
     service_uuids:
       - "0000180d-0000-1000-8000-00805f9b34fb"  # Heart Rate Service
+      - "00001816-0000-1000-8000-00805f9b34fb"  # Cycling Power Service (optional)
+    
     characteristics:
       heart_rate:
-        uuid: "00002a37-0000-1000-8000-00805f9b34fb"
-        format: "uint8"  # Data format specification
+        uuid: "00002a37-0000-1000-8000-00805f9b34fb"  # HR Measurement
+        format: "uint8"
+        notify: true  # Critical for real-time data
+      battery:
+        uuid: "00002a19-0000-1000-8000-00805f9b34fb"  # Battery Level
+        format: "uint8"  # Added missing format
       cadence:
         uuid: "00002a53-0000-1000-8000-00805f9b34fb"
         format: "uint8"
+        notify: true  # Should be true if you want real-time cadence
+        
+    # Connection Parameters
     connection_params:
-      scan_timeout: 10
-      retry_interval: 5
-      linux_bluez: true  # Raspberry Pi specific
+      scan_timeout: 30  # Increased from 10 - good
+      retry_interval: 3
+      linux_bluez: true
+      auto_reconnect: true
+      mtu: 64  # Request larger MTU for better throughput

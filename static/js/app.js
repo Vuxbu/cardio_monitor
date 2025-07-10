@@ -1,187 +1,189 @@
-// ======================
-// INITIALIZATION
-// ======================
-const socket = io();
-let map;
-let courseLayer;
-let positionMarker;
-let currentPosition = { km: 0, lat: 0, lon: 0 };
-
-// DOM Elements
-const elements = {
-    distance: document.getElementById('distance'),
-    incline: document.getElementById('incline'),
-    hr: document.getElementById('heart-rate'),
-    speed: document.getElementById('speed'),
-    nextSplit: document.getElementById('next-split'),
-    timeDelta: document.getElementById('time-delta'),
-    elevationMarker: document.getElementById('elevation-marker')
-};
-
-// ======================
-// MAP SETUP
-// ======================
-function initMap() {
-    map = L.map('map-container').setView([-33.8737, 151.2093], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
-
-    positionMarker = L.circleMarker([0, 0], {
-        radius: 8,
-        color: '#ff0000',
-        fillOpacity: 1
-    }).addTo(map);
-}
-
-// ======================
-// COURSE LOADING
-// ======================
-async function loadCourse(courseName) {
-    try {
-        const response = await fetch(`/courses/${courseName}.geojson`);
-        const geojson = await response.json();
-        
-        // Clear previous course if exists
-        if (courseLayer) map.removeLayer(courseLayer);
-        
-        // Add new course with elevation coloring
-        courseLayer = L.geoJSON(geojson, {
-            style: feature => ({
-                color: getColorForElevation(feature.geometry.coordinates[0][2]),
-                weight: 5
-            })
-        }).addTo(map);
-        
-        // Fit map to course bounds
-        map.fitBounds(courseLayer.getBounds());
-        
-        return geojson;
-    } catch (error) {
-        console.error("Error loading course:", error);
-    }
-}
-
-// ======================
-// REAL-TIME UPDATES
-// ======================
-function updatePosition(km, speed) {
-    // Find nearest point in course data (optimize this if needed)
-    const point = findPointAtKm(km);
-    if (!point) return;
-    
-    // Update marker
-    positionMarker.setLatLng([point.lat, point.lon]);
-    currentPosition = point;
-    
-    // Update elevation display
-    elements.elevationMarker.style.backgroundColor = getColorForElevation(point.ele);
-    
-    // Update split times
-    updateSplitTimes(km, speed);
-}
-
-function updateSplitTimes(km, speed) {
-    // Implement your split time logic here
-    const nextSplit = getNextSplit(km);
-    if (nextSplit) {
-        elements.nextSplit.textContent = `${nextSplit.km}km (${nextSplit.time})`;
-        
-        // Calculate time difference (example)
-        const expectedPace = 5.2; // min/km
-        const currentPace = speed ? (60 / speed).toFixed(1) : '--';
-        elements.timeDelta.textContent = currentPace < expectedPace ? 
-            `-${expectedPace - currentPace}m/km` : 
-            `+${currentPace - expectedPace}m/km`;
-    }
-}
-
-// ======================
-// HELPER FUNCTIONS
-// ======================
-function getColorForElevation(ele) {
-    return ele > 100 ? '#d7191c' : 
-           ele > 50  ? '#fdae61' : 
-                       '#2c7bb6';
-}
-
-function findPointAtKm(targetKm) {
-    if (!courseLayer) return null;
-    
-    const points = courseLayer.toGeoJSON().features;
-    let low = 0;
-    let high = points.length - 1;
-    let bestMatch = null;
-    let bestDiff = Infinity;
-
-    while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const point = points[mid];
-        const currentKm = point.properties.km;
-        const diff = Math.abs(currentKm - targetKm);
-
-        // Track closest point if no exact match
-        if (diff < bestDiff) {
-            bestDiff = diff;
-            bestMatch = point;
-        }
-
-        // Narrow search range
-        if (currentKm < targetKm) {
-            low = mid + 1;
-        } else if (currentKm > targetKm) {
-            high = mid - 1;
-        } else {
-            // Exact match found
-            return formatPoint(point);
-        }
-    }
-
-    return bestMatch ? formatPoint(bestMatch) : null;
-}
-
-// Helper: Convert GeoJSON feature to simpler object
-function formatPoint(feature) {
-    const [lon, lat, ele] = feature.geometry.coordinates[0];
-    return {
-        lat,
-        lon,
-        ele,
-        km: feature.properties.km
-    };
-}
-
-function getNextSplit(km) {
-    // Returns next split point based on current km
-}
-
-// ======================
-// SOCKET.IO HANDLERS
-// ======================
-socket.on('data_update', (data) => {
-    // Existing metrics
-    const element = elements[data.type];
-    if (element) {
-        element.textContent = data.value || '--';
-        element.classList.add('pulse');
-        setTimeout(() => element.classList.remove('pulse'), 500);
-    }
-    
-    // New position handling
-    if (data.type === 'distance') {
-        updatePosition(data.value, elements.speed.textContent);
-    }
-});
-
-// ======================
-// INITIALIZATION
-// ======================
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const elements = {
+        status: document.getElementById('connection-status'),
+        treadmillStatus: document.getElementById('treadmill-status'),
+        speed: document.getElementById('speed'),
+        incline: document.getElementById('incline'),
+        distance: document.getElementById('distance'),
+        heartRate: document.getElementById('heart-rate'),
+        inclineUp: document.getElementById('incline-up'),
+        inclineDown: document.getElementById('incline-down'),
+        emergencyStop: document.getElementById('emergency-stop'),
+        startRun: document.getElementById('start-run'),
+        resetRun: document.getElementById('reset-run')
+    };
+
+let map;
+
+    // Marker Icons
+    const currentIcon = L.divIcon({ className: 'current-marker' });
+    const ghostIcon = L.divIcon({ className: 'ghost-marker' });
+
+    // Course Profile (Replace with your data!)
+    const elevationProfile = [
+        { km: 0, incline: 0 },   // Start
+        { km: 5, incline: 3 },   // Gentle rise
+        { km: 6, incline: 8 },   // Heartbreak Hill
+        { km: 7, incline: 2 }    // Downhill
+    ];
+
+    // Socket.IO Connection
+    const socket = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 2000
+    });
+
+    // Run State
+    let runInProgress = false;
+    let currentDistance = 0;
+
+    // Initialize Map
     initMap();
-    loadCourse('city2surf2013');
-    
-    // Existing event listeners
-    document.getElementById('start-course').addEventListener('click', startCourse);
-    document.getElementById('incline-up').addEventListener('click', () => adjustIncline(1));
-    document.getElementById('incline-down').addEventListener('click', () => adjustIncline(-1));
+
+    // Event Handling
+    socket.on('system_update', (data) => {
+        switch(data.type) {
+            case 'connection':
+                updateConnectionStatus(data.socket_connected, data.treadmill_connected);
+                break;
+            case 'metrics':
+                updateMetrics(data);
+                if (runInProgress) {
+                    currentDistance = data.distance / 1000; // Convert to km
+                    updateMapMarkers(currentDistance);
+                    updateRecommendedIncline(currentDistance);
+                }
+                break;
+            case 'incline':
+                animateInclineChange(data.value);
+                break;
+        }
+    });
+
+    // UI Functions
+    function updateConnectionStatus(socketOk, treadmillOk) {
+        elements.status.textContent = socketOk ? 'CONNECTED' : 'DISCONNECTED';
+        elements.status.className = `status ${socketOk ? 'connected' : 'disconnected'}`;
+
+        elements.treadmillStatus.textContent = treadmillOk ? 'CONNECTED' : 'DISCONNECTED';
+        elements.treadmillStatus.className = `status ${treadmillOk ? 'connected' : 'disconnected'}`;
+
+        [elements.inclineUp, elements.inclineDown, elements.startRun].forEach(btn => {
+            btn.disabled = !(socketOk && treadmillOk);
+        });
+    }
+
+    function updateMetrics(data) {
+        elements.speed.textContent = `${data.speed.toFixed(1)} km/h`;
+        elements.incline.textContent = `${data.incline.toFixed(1)}%`;
+        elements.distance.textContent = `${(data.distance / 1000).toFixed(2)} km`;
+
+        if (data.heart_rate > 0) {
+            elements.heartRate.textContent = `${data.heart_rate} bpm`;
+            elements.heartRate.className = data.heart_rate > 100 ? 'warning' : 'active';
+        } else {
+            elements.heartRate.textContent = '--';
+            elements.heartRate.className = 'inactive';
+        }
+
+        highlightUpdate([elements.speed, elements.incline, elements.distance, elements.heartRate]);
+    }
+
+    function updateRecommendedIncline(currentKm) {
+        const segment = elevationProfile.findLast(p => p.km <= currentKm);
+        const recommendedIncline = segment ? segment.incline : 0;
+        document.getElementById('recommended-incline').textContent = `${recommendedIncline}%`;
+    }
+
+    function highlightUpdate(elements) {
+        elements.forEach(el => {
+            el.classList.add('value-update');
+            setTimeout(() => el.classList.remove('value-update'), 500);
+        });
+    }
+
+    // Map Functions
+    function initMap() {
+         map = L.map('map-container').setView([-33.8688, 151.2093], 13); // Sydney coords
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Load GeoJSON route
+        fetch('/static/data/courses/city2surf2013.geojson')
+            .then(response => response.json())
+            .then(data => {
+                window.routeLayer = L.geoJSON(data, {
+                    style: { color: '#4285F4', weight: 4, opacity: 0.8 }
+                }).addTo(map);
+                map.fitBounds(window.routeLayer.getBounds());
+            })
+            .catch(err => console.error('Error loading GeoJSON:', err));
+    }
+
+    function getPositionAlongRoute(km) {
+        // Simplified: Linear interpolation (replace with precise GeoJSON parsing later)
+        const start = [-33.8688, 151.2093]; // Sydney start
+        const end = [-33.8900, 151.2750];   // Bondi finish
+        const progress = Math.min(km / 14, 1); // City2Surf is ~14km
+        return [
+            start[0] + (end[0] - start[0]) * progress,
+            start[1] + (end[1] - start[1]) * progress
+        ];
+    }
+
+    function updateMapMarkers(currentKm) {
+        const currentPos = getPositionAlongRoute(currentKm);
+        const previousPos = getPositionAlongRoute(currentKm * 0.95); // Ghost at 95% of current distance
+
+        if (!window.currentMarker) {
+            window.currentMarker = L.marker(currentPos, { icon: currentIcon }).addTo(map);
+            window.previousMarker = L.marker(previousPos, { icon: ghostIcon }).addTo(map);
+        } else {
+            window.currentMarker.setLatLng(currentPos);
+            window.previousMarker.setLatLng(previousPos);
+        }
+    }
+
+    // Control Handlers
+    elements.startRun.addEventListener('click', () => {
+        runInProgress = true;
+        elements.startRun.disabled = true;
+    });
+
+    elements.resetRun.addEventListener('click', () => {
+        runInProgress = false;
+        currentDistance = 0;
+        elements.startRun.disabled = false;
+        updateMapMarkers(0); // Reset markers
+    });
+
+    elements.inclineUp.addEventListener('click', () => {
+        socket.emit('control_incline', { value: 0.5 });
+        animateButton(elements.inclineUp);
+    });
+
+    elements.inclineDown.addEventListener('click', () => {
+        socket.emit('control_incline', { value: -0.5 });
+        animateButton(elements.inclineDown);
+    });
+
+    elements.emergencyStop.addEventListener('click', () => {
+        socket.emit('emergency_stop');
+        animateButton(elements.emergencyStop, 'emergency');
+    });
+
+    function animateButton(button, type = 'normal') {
+        button.classList.add(type === 'emergency' ? 'button-emergency' : 'button-press');
+        setTimeout(() => {
+            button.classList.remove(type === 'emergency' ? 'button-emergency' : 'button-press');
+        }, type === 'emergency' ? 1000 : 200);
+    }
+
+    // Initialize
+    updateConnectionStatus(false, false);
+    console.log("Treadmill controller ready");
 });

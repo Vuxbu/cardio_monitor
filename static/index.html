@@ -2,101 +2,93 @@
 <html>
 <head>
     <title>Treadmill Controller</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- CSS -->
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/static/js/app.js"></script>
     <style>
-        /* Additional CSS for new features */
-        #map-container {
-            height: 300px;
-            margin: 20px 0;
-            border-radius: 8px;
-            overflow: hidden;
+        #map-container { height: 300px; margin: 20px 0; border-radius: 8px; overflow: hidden; }
+        .split-info { background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .elevation-key { display: flex; justify-content: space-around; margin: 10px 0; }
+        .elevation-color { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+        #connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
         }
-        .split-info {
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-        .elevation-key {
-            display: flex;
-            justify-content: space-around;
-            margin: 10px 0;
-        }
-        .elevation-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: inline-block;
-        }
+        .connected { background: #4CAF50; color: white; }
+        .disconnected { background: #f44336; color: white; }
     </style>
 </head>
 <body>
+    <div id="connection-status" class="disconnected">Disconnected</div>
+
     <div class="container">
-        <h1>🏃 City2Surf Simulator</h1>
-        
-        <!-- Course Selection -->
-        <div class="control-panel">
-            <select id="course-select">
-                <option value="city2surf2013">City2Surf 2013</option>
-                <option value="chicago_marathon24">Chicago Marathon</option>
-            </select>
-            <button id="start-course">Start Course</button>
-            <label>
-                <input type="checkbox" id="auto-incline"> Auto Incline
-            </label>
+        <h1>?? Treadmill Controller</h1>
+
+        <!-- Connection Status -->
+        <div id="device-status">
+            <p>Treadmill: <span id="treadmill-status">Disconnected</span></p>
         </div>
 
         <!-- Live Metrics -->
         <div class="metrics">
             <div class="metric">
-                <span>Distance:</span>
-                <span id="distance">0.0</span> km
-                <span id="elevation-marker" class="elevation-color"></span>
+                <span>Speed:</span>
+                <span id="speed">0.0</span> km/h
             </div>
             <div class="metric">
                 <span>Incline:</span>
-                <span id="incline">0</span>%
+                <span id="incline">0.0</span>%
+            </div>
+            <div class="metric">
+                <span>Distance:</span>
+                <span id="distance">0.00</span> km
             </div>
             <div class="metric">
                 <span>Heart Rate:</span>
                 <span id="heart-rate">--</span> bpm
             </div>
-            <div class="metric">
-                <span>Speed:</span>
-                <span id="speed">0.0</span> km/h
-            </div>
-        </div>
-
-        <!-- Course Visualization -->
-        <div id="map-container"></div>
-        <div id="course-plot" style="height: 300px;"></div>
-
-        <!-- Split Time Info -->
-        <div class="split-info">
-            <div>Next Split: <span id="next-split">5.0km (00:22:45)</span></div>
-            <div>Current Split: <span id="current-split-time">00:00:00</span></div>
-            <div>vs Your Best: <span id="time-delta">+0:00</span></div>
-        </div>
-
-        <!-- Elevation Key -->
-        <div class="elevation-key">
-            <div><span class="elevation-color" style="background: #2c7bb6;"></span> Low</div>
-            <div><span class="elevation-color" style="background: #fdae61;"></span> Medium</div>
-            <div><span class="elevation-color" style="background: #d7191c;"></span> High</div>
         </div>
 
         <!-- Manual Controls -->
         <div class="manual-controls">
-            <button id="incline-up">▲ Incline+</button>
-            <button id="incline-down">▼ Incline-</button>
+            <button id="incline-up">? Incline+</button>
+            <button id="incline-down">? Incline-</button>
+            <button id="emergency-stop" class="btn-emergency">?? Emergency Stop</button>
+        </div>
+        <div class="metric">
+		    <span>Recommended Incline:</span>
+		    <span id="recommended-incline">0.0%</span>
+            </div>
+        <div class="run-controls">
+             <button id="start-run">? Start Run</button>
+             <button id="reset-run">? Reset</button>
+         </div>
+
+        <!-- Map Container -->
+        <div id="map-container"></div>
+
+        <!-- Elevation Profile -->
+        <div class="split-info">
+            <h3>Course Elevation</h3>
+            <div class="elevation-key">
+                <span><div class="elevation-color" style="background:#4CAF50"></div> Flat</span>
+                <span><div class="elevation-color" style="background:#FFC107"></div> Moderate</span>
+                <span><div class="elevation-color" style="background:#F44336"></div> Steep</span>
+            </div>
+            <div id="elevation-chart"></div>
         </div>
     </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>

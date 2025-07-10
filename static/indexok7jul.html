@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Treadmill Controller</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map-container { height: 300px; margin: 20px 0; border-radius: 8px; overflow: hidden; }
+        .split-info { background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .elevation-key { display: flex; justify-content: space-around; margin: 10px 0; }
+        .elevation-color { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+        .metric { margin: 10px 0; font-size: 1.2em; }
+        #connection-status { 
+            position: fixed; 
+            top: 10px; 
+            right: 10px; 
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .connected { background: #4CAF50; color: white; }
+        .disconnected { background: #f44336; color: white; }
+    </style>
+</head>
+<body>
+    <div id="connection-status" class="disconnected">Disconnected</div>
+    
+    <div class="container">
+        <h1>🏃 Treadmill Controller</h1>
+        
+        <!-- Connection Status -->
+        <div id="device-status">
+            <p>Treadmill: <span id="treadmill-status">Disconnected</span></p>
+        </div>
+
+        <!-- Live Metrics -->
+        <div class="metrics">
+            <div class="metric">
+                <span>Speed:</span>
+                <span id="speed">0.0</span> km/h
+            </div>
+            <div class="metric">
+                <span>Incline:</span>
+                <span id="incline">0.0</span>%
+            </div>
+            <div class="metric">
+                <span>Distance:</span>
+                <span id="distance">0.00</span> km
+            </div>
+            <div class="metric">
+                <span>Heart Rate:</span>
+                <span id="heart-rate">--</span> bpm
+            </div>
+        </div>
+
+        <!-- Manual Controls -->
+        <div class="manual-controls">
+            <button id="incline-up">▲ Incline+</button>
+            <button id="incline-down">▼ Incline-</button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Socket.IO Connection
+        const socket = io();
+        const statusElement = document.getElementById('connection-status');
+        
+        // Connection status
+        socket.on('connect', () => {
+            statusElement.textContent = 'Connected';
+            statusElement.className = 'connected';
+            console.log('WebSocket connected');
+        });
+
+        socket.on('disconnect', () => {
+            statusElement.textContent = 'Disconnected';
+            statusElement.className = 'disconnected';
+            console.log('WebSocket disconnected');
+        });
+
+        // Treadmill Data Handling
+        socket.on('data_update', (data) => {
+            console.log('Received data:', data);
+            
+            if (data.type === 'treadmill') {
+                document.getElementById('speed').textContent = data.speed.toFixed(1);
+                document.getElementById('incline').textContent = data.incline.toFixed(1);
+                document.getElementById('distance').textContent = (data.distance / 1000).toFixed(2); // Convert m to km
+                
+                if (data.heart_rate && data.heart_rate > 0) {
+                    document.getElementById('heart-rate').textContent = data.heart_rate;
+                }
+            }
+        });
+
+        // Device Status Updates
+        socket.on('device_status', (status) => {
+            document.getElementById('treadmill-status').textContent = 
+                status.connected ? 'Connected' : 'Disconnected';
+        });
+
+        // Control Handlers
+        document.getElementById('incline-up').addEventListener('click', () => {
+            socket.emit('adjust_incline', { direction: 0.5 }); // Increase by 0.5%
+        });
+
+        document.getElementById('incline-down').addEventListener('click', () => {
+            socket.emit('adjust_incline', { direction: -0.5 }); // Decrease by 0.5%
+        });
+    </script>
+</body>
+</html>
