@@ -69,7 +69,11 @@
              <button id="start-run">? Start Run</button>
              <button id="reset-run">? Reset</button>
          </div>
-
+<!-- Add near your other controls -->
+<div class="distance-panel">
+    <div>Warmup: <span id="warmup-display">0 km</span></div>
+    <div>Race: <span id="race-display">0 km</span>/14 km</div>
+</div>
         <!-- Map Container -->
         <div id="map-container"></div>
 
@@ -87,8 +91,28 @@
 
     <!-- JavaScript -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/static/js/app.js"></script>
+<script>
+  // Replace your socket initialization with:
+  window.socket = io('http://' + window.location.hostname + ':8080', {
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    transports: ['websocket']
+  });
+  
+  // Debug connection events
+  window.socket.on('connect', () => console.log('SOCKET CONNECTED'));
+  window.socket.on('disconnect', () => console.log('SOCKET DISCONNECTED'));
+  window.socket.on('connect_error', (err) => console.log('SOCKET ERROR:', err));
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+  console.log("App.js completed loading", {
+    socket: typeof window.socket,
+    L: typeof L,
+    Chart: typeof Chart
+  });
+</script>
 </body>
 </html>
