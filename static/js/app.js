@@ -1,3 +1,7 @@
+/* ========= IMPORTS ========= */
+import { initElevationChart } from './components/elevation/ChartManager.js';
+/* =========================== */
+
 /* ========= SOCKET INITIALIZATION ========= */
 if (!window.socket) {
   window.socket = io({
@@ -22,6 +26,7 @@ const socket = window.socket;
 /* ========================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
+   
     // Constants
     const CONSTANTS = {
         RACE_TOTAL_KM: 14,
@@ -62,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // State Variables
     let map;
+    let elevationChart;
     let runInProgress = false;
     let currentDistance = 0;
     let smoothedDistance = 0;
@@ -255,6 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.heartRate,
             elements.currentPace
         ].filter(el => el));
+      if (elevationChart && typeof currentKm === 'number') {
+        elevationChart.updatePosition(currentKm);
+    } else {
+        console.warn('Elevation chart not ready');
+    }
     }
 
     function updateUI() {
@@ -352,8 +363,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     incline: parseFloat(p.grade.toFixed(1)),
                     elevation: parseFloat(p.ele.toFixed(1))
                 })) || [];
-        
-                console.log("Course loaded:", {
+              if (!elevationChart) {
+                  elevationChart = initElevationChart(window.elevationProfile);
+                }
+                
+        console.log("Course loaded:", {
                     points: window.routeCoordinates.length,
                     distance: data.features[0].properties.distance_km,
                     elevationProfile: window.elevationProfile
@@ -502,6 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Initialize
+   
+
     updateConnectionStatus(false, false);
     if (elements.startRun) elements.startRun.textContent = "Start Warmup";
     

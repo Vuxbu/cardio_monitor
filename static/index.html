@@ -65,6 +65,11 @@
 		    <span>Recommended Incline:</span>
 		    <span id="recommended-incline">0.0%</span>
             </div>
+            <!-- Add near map container -->
+<div class="elevation-container">
+  <canvas id="elevation-chart"></canvas>
+</div>
+
         <div class="run-controls">
              <button id="start-run">? Start Run</button>
              <button id="reset-run">? Reset</button>
@@ -106,7 +111,7 @@
 </script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/js/app.js"></script>
+<script type="module" src="/static/js/app.js"></script>
 <script>
   console.log("App.js completed loading", {
     socket: typeof window.socket,
