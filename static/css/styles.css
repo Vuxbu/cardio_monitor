@@ -229,3 +229,40 @@ body {
   width: 100%;
   height: 120px;
 }
+/* Add to your styles.css */
+#elevation-chart {
+  width: 100%;
+  min-height: 150px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  margin: 10px 0;
+}
+
+.connected { color: #28a745; font-weight: bold; }
+.disconnected { color: #dc3545; font-weight: bold; }
+
+/* Ensure canvas renders */
+#elevation-chart canvas {
+  display: block;
+  width: 100% !important;
+  height: 150px !important;
+}
+.connection-pill {
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin: 0 4px;
+  font-size: 14px;
+}
+.connected { background: #d4edda; color: #155724; }
+.disconnected { background: #f8d7da; color: #721c24; }
+/* /static/css/styles.css */
+#connection-status {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  padding: 5px 10px;
+  border-radius: 3px;
+}
+
+.connected { background: #4CAF50; color: white; }
+.disconnected { background: #f44336; color: white; }

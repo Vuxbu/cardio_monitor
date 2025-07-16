@@ -12,7 +12,7 @@ class HRMManager:
         self.config = self._load_config()
         self.client: Optional[BleakClient] = None
         self._callback: Optional[Callable[[int], None]] = None
-        self.is_connected = False
+        self._is_connected = False
         logging.basicConfig(level=logging.DEBUG)  # Enable debug logging
 
     def _load_config(self):
@@ -51,13 +51,13 @@ class HRMManager:
                     self.config['heart_rate_uuid'],
                     self._handle_data
                 )
-                self.is_connected = True
+                self._is_connected = True
                 logging.info(f"HRM connected successfully to {self.config['mac_address']}")
             else:
                 raise ConnectionError("BleakClient.connect() returned False")
                 
         except Exception as e:
-            self.is_connected = False
+            self._is_connected = False
             logging.error(f"HRM connection failed: {str(e)}")
             raise
 
@@ -85,7 +85,7 @@ class HRMManager:
         """Guaranteed clean disconnect"""
         if self.client and self.is_connected:
             await self.client.disconnect()
-        self.is_connected = False
+        self._is_connected = False
 
     @property
     def hr_callback(self):

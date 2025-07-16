@@ -7,8 +7,10 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/components/elevation.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
+   <link rel="icon" href="data:,">
+   <style>
         #map-container { height: 300px; margin: 20px 0; border-radius: 8px; overflow: hidden; }
         .split-info { background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; margin-top: 10px; }
         .elevation-key { display: flex; justify-content: space-around; margin: 10px 0; }
@@ -66,8 +68,15 @@
 		    <span id="recommended-incline">0.0%</span>
             </div>
             <!-- Add near map container -->
+
+            <h3>Course Elevation</h3>
 <div class="elevation-container">
-  <canvas id="elevation-chart"></canvas>
+  <canvas id="elevation-chart-canvas" width="800" height="150"></canvas>
+  <div class="elevation-key">
+                <span><div class="elevation-color" style="background:#4CAF50"></div> Flat</span>
+                <span><div class="elevation-color" style="background:#FFC107"></div> Moderate</span>
+                <span><div class="elevation-color" style="background:#F44336"></div> Steep</span>
+            </div>
 </div>
 
         <div class="run-controls">
@@ -82,7 +91,7 @@
         <!-- Map Container -->
         <div id="map-container"></div>
 
-        <!-- Elevation Profile -->
+        <!-- Elevation Profile 
         <div class="split-info">
             <h3>Course Elevation</h3>
             <div class="elevation-key">
@@ -91,7 +100,7 @@
                 <span><div class="elevation-color" style="background:#F44336"></div> Steep</span>
             </div>
             <div id="elevation-chart"></div>
-        </div>
+        </div> -->
     </div>
 
     <!-- JavaScript -->

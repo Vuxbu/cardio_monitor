@@ -1,0 +1,111 @@
+#elevation-chart {
+  width: 100%;
+  height: 150px; /* Fixed height */
+  display: block !important; /* Override any hiding */
+  background: white; /* Ensure visibility */
+  border: 1px solid #ccc; /* Visual boundary */
+}
+#elevation-chart {
+  transition: height 0.3s ease;
+  position: relative;
+}
+
+.chart-error {
+  text-align: center;
+  padding: 1rem;
+  color: #ff6b6b;
+}
+
+.chart-error button {
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.chart-error {
+    color: #ff6b6b;
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.9em;
+}
+#elevation-chart {
+  width: 100% !important;
+  height: 150px !important;
+  display: block !important;
+}
+
+/* Debug styles (remove after verification) */
+#elevation-chart {
+  border: 2px dashed red !important;
+  background: rgba(200,200,255,0.2) !important;
+}
+#elevation-chart {
+  display: block;
+  width: 100%;
+  height: 120px;
+}
+#elevation-chart-canvas {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.elevation-container:hover #elevation-chart-canvas {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+/* Pulse animation for your position marker */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Apply to chart markers */
+canvas[data-chart] .chartjs-render-monitor [data-label="Your Position"] {
+    animation: pulse 1.5s infinite;
+    filter: drop-shadow(0 0 4px rgba(66, 133, 244, 0.8));
+}
+
+canvas[data-chart] .chartjs-render-monitor [data-label="Ghost Runner"] {
+    filter: drop-shadow(0 0 2px rgba(234, 67, 53, 0.6));
+}
+#elevation-chart {
+    border: 2px solid blue !important;
+}
+#map-container {
+    border: 2px solid green !important;
+}
+
+
+.chart-error {
+  padding: 1rem;
+  background: #ffebee;
+  color: #b71c1c;
+  border-radius: 4px;
+}
+.elevation-container {
+  width: 100%;
+  height: 150px;
+  position: relative;
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 20px 0;
+}
+
+#elevation-chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* Debug visualization */
+.elevation-container.debug {
+  border: 2px solid blue;
+  background: rgba(0,0,255,0.05);
+}

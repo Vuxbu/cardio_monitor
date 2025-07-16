@@ -55,20 +55,31 @@ async def manage_devices():
     while True:
         try:
             if not treadmill.is_connected:
-                await treadmill.connect_with_retry()
-                await sio.emit('system_update', {
-                    'type': 'connection',
-                    'treadmill_connected': True
-                })
+                success = await treadmill.connect_with_retry()
+                if success:
+                    logger.info(f"Emitting connection status - Socket: True, Treadmill: {treadmill.is_connected}")
+                    await sio.emit(
+                        'system_update',
+                        {
+                            'type': 'connection',
+                            'socket_connected': True,
+                            'treadmill_connected': treadmill.is_connected
+                        },
+                        callback=lambda: logger.debug("Status update confirmed by frontend")
+                    )
             await asyncio.sleep(1)
         except Exception as e:
             logger.error(f"Device error: {str(e)}")
-            await sio.emit('system_update', {
-                'type': 'connection', 
-                'treadmill_connected': False
-            })
-            await asyncio.sleep(5)
-
+            await sio.emit(
+                'system_update',
+                {
+                    'type': 'connection', 
+                    'socket_connected': True,
+                    'treadmill_connected': False
+                },
+                callback=lambda: logger.debug("Error status update confirmed")
+            )
+            await asyncio.sleep(5)  # Longer delay after errors
 # WebSocket Events
 @sio.event
 async def connect(sid, environ):

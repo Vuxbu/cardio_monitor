@@ -11,10 +11,10 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 class WoodwayTreadmill:
     def __init__(self, config_path: str = "configs/woodway_treadmill.yaml"):
         self.config_path = Path(__file__).parent.parent / config_path
+        self._is_connected = False
         self.config = self._load_config()
         self.client: Optional[BleakClient] = None
         self.callback: Optional[Callable[[Dict], Awaitable[None]]] = None
-        self.is_connected = False
         self.last_update: Optional[datetime] = None
         self.accumulated_distance = 0.0  # meters
         self.last_raw_distance = 0
@@ -23,6 +23,14 @@ class WoodwayTreadmill:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
+    @property
+    def is_connected(self) -> bool:
+        """Public property to check treadmill connection status.
+        Returns:
+            bool: True if treadmill is connected and communicating
+        """
+        return self._is_connected
+    
     def _load_config(self) -> dict:
         """Load and validate device configuration"""
         with open(self.config_path) as f:
@@ -57,10 +65,10 @@ class WoodwayTreadmill:
                 self.config['data_uuid'],
                 self._handle_data
             )
-            self.is_connected = True
+            self._is_connected = True
             self.logger.info(f"Connected to {self.config['mac_address']}")
         except Exception as e:
-            self.is_connected = False
+            self._is_connected = False
             self.logger.error(f"Connection failed: {str(e)}")
             raise
 
@@ -141,4 +149,4 @@ class WoodwayTreadmill:
                 self.logger.info("Disconnected from treadmill")
             except Exception as e:
                 self.logger.error(f"Disconnect error: {str(e)}")
-        self.is_connected = False
+        self._is_connected = False
