@@ -60,3 +60,4 @@ testenv/
 configs/garmin_creds.yaml
 .env
 .env
+static/data/courses/
