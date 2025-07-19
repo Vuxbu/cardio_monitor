@@ -9,6 +9,8 @@ from time import perf_counter
 from functools import wraps
 from geojson import Feature, FeatureCollection, LineString
 
+__version__ = "1.0.0"  # Define version
+
 GPX_NS = {
     'ns3': 'http://www.garmin.com/xmlschemas/TrackPointExtension/v1',
     'gpxtpx': 'http://www.garmin.com/xmlschemas/TrackPointExtension/v1'
@@ -228,12 +230,12 @@ def convert_directory(input_dir, output_dir):
     return results
 
 if __name__ == "__main__":
-    if len(sys.argv) not in {2, 3}:
-        print("Usage:\n"
-              "Single file: python gpx_to_geojson.py <input.gpx> <output.json>\n"
-              "Batch mode: python gpx_to_geojson.py <input_dir> <output_dir>",
-              file=sys.stderr)
-        sys.exit(1)
+    if len(sys.argv) != 3:
+      print(f"GPX to JSON Converter v{__version__}")
+      print("Usage: python gpx_json_converter.py <input.gpx> <output.json>")
+    sys.exit(1)
+        
+    convert_gpx(sys.argv[1], sys.argv[2])
         
     try:
         if len(sys.argv) == 3 and os.path.isdir(sys.argv[1]):
