@@ -56,3 +56,7 @@ __pycache__/
 # Log files
 *.log
 
+testenv/
+configs/garmin_creds.yaml
+.env
+.env
