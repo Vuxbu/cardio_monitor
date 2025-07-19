@@ -18,7 +18,7 @@ CUSTOM_INCLINE_SCALE_FACTOR = 10.0
 # Distance: Hypothesis - Raw value from bytes 8-12 (4 bytes) as UINT32. Assuming meters.
 CUSTOM_DISTANCE_SCALE_FACTOR = 1.0 # For meters
 # Heart Rate: Hypothesis - Raw value from byte 17 (1 byte) as UINT8. Assuming BPM.
-CUSTOM_HEART_RATE_SCALE_FACTOR = 1.0 # For BPM
+# CUSTOM_HEART_RATE_SCALE_FACTOR = 1.0 # For BPM
 
 # Function to parse the Treadmill Data characteristic value for Woodway 4front
 def parse_woodway_data(data: bytearray):
@@ -30,10 +30,14 @@ def parse_woodway_data(data: bytearray):
     - Bytes 6-7 (little-endian UINT16) for Speed.
     - Bytes 16-17 (little-endian UINT16) for Incline.
     - Bytes 8-11 (little-endian UINT32) for Distance (hypothesis).
-    - Byte 17 (single byte UINT8) for Heart Rate (hypothesis).
+    - Byte 5 (single byte UINT8) for Heart Rate (hypothesis).
     """
     # Ensure data is long enough for all expected values
     # Minimum length for speed (6-7), distance (8-11), incline (16-17), heart rate (17) -> needs at least 18 bytes
+    print("Raw Data Bytes:")
+    for i, byte in enumerate(data):
+        print(f"  Byte {i}: 0x{byte:02X} ({byte})")
+    
     if len(data) < 18: 
         print(f"DEBUG: parse_woodway_data received insufficient data: {len(data)} bytes. Raw: {data.hex()}")
         return None, None, None, None # Return None for all parsed values
@@ -64,8 +68,9 @@ def parse_woodway_data(data: bytearray):
         # Parse Heart Rate (Hypothesis)
         # Check if enough bytes are available for a 1-byte UINT8 at data[17:18]
         if len(data) >= 18: # data[17] is the 18th byte (index 17)
-            raw_heart_rate = struct.unpack("<B", data[17:18])[0] # B for unsigned char (1 byte)
-            parsed_heart_rate_bpm = raw_heart_rate / CUSTOM_HEART_RATE_SCALE_FACTOR
+            raw_heart_rate = data[5]
+            print(f"DEBUG: Raw Heart Rate (unsigned char): {raw_heart_rate}")
+            parsed_heart_rate_bpm = raw_heart_rate 
         else:
             print(f"DEBUG: Not enough bytes for Heart Rate (expected 1 at 17:18), only {len(data)} available.")
 
