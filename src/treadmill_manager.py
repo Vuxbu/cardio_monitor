@@ -19,6 +19,10 @@ class WoodwayTreadmill:
         self.accumulated_distance = 0.0  # meters
         self.last_raw_distance = 0
         self.sample_count = 0
+        self.workout_start_time: Optional[datetime] = None
+        self.total_seconds_elapsed = 0
+        self.last_minutes = 0
+        self.last_seconds = 0
         
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -32,26 +36,22 @@ class WoodwayTreadmill:
         return self._is_connected
     
     def _load_config(self) -> dict:
-        """Load and validate device configuration"""
+        """Load and validate device configuration from YAML"""
         with open(self.config_path) as f:
             config = yaml.safe_load(f)
-        
+    
+        # Validate critical fields exist
+        required_fields = ['address', 'data_uuid', 'byte_positions']
+        if not all(field in config['devices']['treadmill'] for field in required_fields):
+            raise ValueError("Missing required fields in treadmill config")
+    
         return {
             'mac_address': config['devices']['treadmill']['address'],
             'data_uuid': config['devices']['treadmill']['data_uuid'],
-            'byte_positions': {
-                'speed': (6, 7),
-                'distance': (8, 9),
-                'incline': (16, 17),
-                'heart_rate': 13
-            },
-            'scale_factors': {
-                'speed': 100.0,     # km/h = raw/100
-                'distance': 1.0,   # meters = raw/10
-                'incline': 10.0     # % = raw/10
-            },
-            'max_speed': 25.0,     # km/h safety limit
-            'max_incline': 15.0     # % safety limit
+            'byte_positions': config['devices']['treadmill']['byte_positions'],
+            'scale_factors': config['devices']['treadmill'].get('scale_factors', {}),
+            'max_speed': config['devices']['treadmill'].get('limits', {}).get('max_speed', 25.0),
+            'max_incline': config['devices']['treadmill'].get('limits', {}).get('max_incline', 15.0)
         }
 
     @retry(stop=stop_after_attempt(3), 
@@ -125,19 +125,43 @@ class WoodwayTreadmill:
                 raw_distance < 65535)  # Max UINT16 value
 
     def _parse_value(self, data: bytearray, key: str) -> float:
-        """Parse and validate scaled values"""
-        start, end = self.config['byte_positions'][key]
-        raw = struct.unpack('<H', data[start:end+1])[0]
-        value = raw / self.config['scale_factors'][key]
+        """Parse and validate scaled values from BLE data"""
+        try:
+            # Get byte position(s) from config
+            byte_pos = self.config['byte_positions'][key]
         
-        # Safety checks
-        if key == 'speed' and value > self.config['max_speed']:
-            self.logger.warning(f"Clamping speed {value} to max {self.config['max_speed']}")
-            return self.config['max_speed']
-        if key == 'incline' and abs(value) > self.config['max_incline']:
-            self.logger.warning(f"Clamping incline {value} to max {self.config['max_incline']}")
-            return self.config['max_incline'] * (1 if value > 0 else -1)
-            
+            # Handle both single-byte and multi-byte values
+            if isinstance(byte_pos, int):
+                raw = data[byte_pos]
+            elif isinstance(byte_pos, list) and len(byte_pos) == 2:
+                raw = struct.unpack('<H', data[byte_pos[0]:byte_pos[1]+1])[0]
+            else:
+                raise ValueError(f"Invalid byte position config for {key}")
+        
+            # Apply scaling factor (default to 1.0 if not specified)
+            scale = self.config['scale_factors'].get(key, 1.0)
+            value = raw / scale
+        
+            # Apply safety limits
+            return self._apply_safety_limits(key, value)
+        
+        except (IndexError, struct.error) as e:
+            self.logger.error(f"Parse error for {key}: {str(e)}")
+            return 0.0  # Safe default
+
+    def _apply_safety_limits(self, key: str, value: float) -> float:
+        """Apply configured safety limits to values"""
+        if key == 'speed':
+            max_val = self.config.get('max_speed', 25.0)
+            if value > max_val:
+                self.logger.warning(f"Clamping speed {value} to max {max_val}")
+                return max_val
+        elif key == 'incline':
+            max_val = self.config.get('max_incline', 15.0)
+            if abs(value) > max_val:
+                 clamped = max_val * (1 if value > 0 else -1)
+                 self.logger.warning(f"Clamping incline {value} to {clamped}")
+                 return clamped
         return value
 
     async def disconnect(self):

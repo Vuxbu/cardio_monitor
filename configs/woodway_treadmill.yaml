@@ -1,11 +1,20 @@
 devices:
   treadmill:
     address: D0:CF:5E:E3:25:D3
-    byte_positions:
-      incline:
-      - 16
-      - 17
-      speed:
-      - 6
-      - 7
     data_uuid: a026e01d-0a7d-4ab3-97fa-f1500f9feb8b
+    byte_positions:
+      speed: [6, 7]       # List format for multi-byte
+      distance: [8, 9]
+      incline: [16, 17]
+      heart_rate: 5       # Single integer for single-byte
+      seconds: 3
+      minutes: 4
+      mets: 15
+    scale_factors:
+      speed: 100.0
+      distance: 1.0
+      incline: 10.0
+      mets: 10.0
+    limits:
+      max_speed: 25.0
+      max_incline: 15.0
